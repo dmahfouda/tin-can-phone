@@ -4,6 +4,36 @@
 
 WebSocketsClient webSocket;
 
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+
+  switch(type) {
+    case WStype_DISCONNECTED:
+      Serial.printf("[WSc] Disconnected!\n");
+      break;
+    case WStype_CONNECTED: {
+      Serial.printf("[WSc] Connected to url: %s\n", payload);
+
+      // send message to server when Connected
+      webSocket.sendTXT("Connected");
+    }
+      break;
+    case WStype_TEXT:
+      Serial.printf("[WSc] get text: %s\n", payload);
+
+      // send message to server
+      // webSocket.sendTXT("message here");
+      break;
+    case WStype_BIN:
+      Serial.printf("[WSc] get binary length: %u\n", length);
+      hexdump(payload, length);
+
+      // send data to server
+      // webSocket.sendBIN(payload, length);
+      break;
+  }
+
+}
+
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);     // Initialize the LED_BUILTIN pin as an output
   Serial.begin(115200);
@@ -22,37 +52,21 @@ void setup() {
   Serial.print("Connected, IP address: ");
   Serial.println(WiFi.localIP());
 
-    // start webSocket server
-    webSocket.begin("10.0.20.109", 81);
+  // start webSocket server
+  webSocket.beginSocketIO("10.0.20.109", 3000);
+    // event handler
+  webSocket.onEvent(webSocketEvent);
+
+    // try ever 5000 again if connection has failed
+  // webSocket.setReconnectInterval(5000);
 }
 
 // the loop function runs over and over again forever
 void loop() {
   digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-  // but actually the LED is on; this is because
-  // it is active low on the ESP-01)
-  delay(100);                      // Wait for a second
-  digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
-  delay(100);                      // Wait for two seconds (to demonstrate the active low LED)
-  
-  if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
- 
-    HTTPClient http;  //Declare an object of class HTTPClient
- 
-    http.begin("http://jsonplaceholder.typicode.com/users/1");  //Specify request destination
-    int httpCode = http.GET();                                                                  //Send the request
- 
-    if (httpCode > 0) { //Check the returning code
- 
-      String payload = http.getString();   //Get the request response payload
-      Serial.println(payload);                     //Print the response payload
- 
-    }
- 
-    http.end();   //Close connection
- 
-  }
-
-    webSocket.loop();
-
+    
+  // if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
+  //       webSocket.loop();
+  // }
+  webSocket.loop();
 }
