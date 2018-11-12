@@ -4,6 +4,12 @@
 
 WebSocketsClient webSocket;
 
+#define MESSAGE_INTERVAL 30000
+#define HEARTBEAT_INTERVAL 25000
+uint64_t messageTimestamp = 0;
+uint64_t heartbeatTimestamp = 0;
+bool isConnected = false;
+
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
 
   switch(type) {
