@@ -1,4 +1,4 @@
-int speakerPin = 13;
+int speakerPin = LED_BUILTIN;
  
 int numTones = 10;
 int tones[] = {261, 277, 294, 311, 330, 349, 370, 392, 415, 440};
@@ -8,14 +8,19 @@ void setup()
 {
   for (int i = 0; i < numTones; i++)
   {
-    tone(speakerPin, tones[i]);
-    delay(500);
+    tone2(speakerPin, tones[i], 500);
+    // delay(500);
   }
-  noTone(speakerPin);
+  noTone2(speakerPin);
   Serial.begin(9600);
+  pinMode(speakerPin, OUTPUT);
 }
  
 void loop()
 {
-	Serial.printf("hiya");
+	// digitalWrite(speakerPin, millis()%100<50);
+	for (int i = 0; i < numTones; i++){
+	    tone2(speakerPin, tones[i], 500);
+	    delay(500);
+	  }
 }

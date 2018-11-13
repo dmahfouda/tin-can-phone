@@ -39,9 +39,9 @@ static void _startTone(uint8_t _pin, uint32_t high, uint32_t low, unsigned long 
 }
 
 
-void tone(uint8_t _pin, unsigned int frequency, unsigned long duration) {
+void tone2(uint8_t _pin, unsigned int frequency, unsigned long duration) {
   if (frequency == 0) {
-    noTone(_pin);
+    noTone2(_pin);
   } else {
     uint32_t period = 1000000L / frequency;
     uint32_t high = period / 2;
@@ -53,9 +53,9 @@ void tone(uint8_t _pin, unsigned int frequency, unsigned long duration) {
 
 // Separate tone(float) to hopefully not pull in floating point libs unless
 // it's called with a float.
-void tone(uint8_t _pin, double frequency, unsigned long duration) {
+void tone2(uint8_t _pin, double frequency, unsigned long duration) {
   if (frequency < 1.0) { // FP means no exact comparisons
-    noTone(_pin);
+    noTone2(_pin);
   } else {
     double period = 1000000.0 / frequency;
     uint32_t high = (uint32_t)((period / 2.0) + 0.5);
@@ -66,16 +66,18 @@ void tone(uint8_t _pin, double frequency, unsigned long duration) {
 
 
 // Fix ambiguous tone() binding when adding in a duration
-void tone(uint8_t _pin, int frequency, unsigned long duration) {
+void tone2(uint8_t _pin, int frequency, unsigned long duration) {
+  Serial.printf("I'm in tone2!\n");
   // Call the unsigned int version of the function explicitly
-  tone(_pin, (unsigned int)frequency, duration);
+  tone2(_pin, (unsigned int)frequency, duration);
 }
 
 
-void noTone(uint8_t _pin) {
+void noTone2(uint8_t _pin) {
   if (_pin > 16) {
     return;
   }
+  Serial.printf("I'm in noTone2!\n");
   stopWaveform(_pin);
   _toneMap &= ~(1 << _pin);
   digitalWrite(_pin, 0);
