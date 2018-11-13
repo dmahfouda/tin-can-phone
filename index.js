@@ -12,14 +12,17 @@ io.on('connection', function(socket){
   	// 	console.log(packet);
   	// 	next();
   	// })
-  	socket.on('messageType', () => { 
-  		console.log('received message')
-  	})
+  socket.on('messageType', () => { 
+  	console.log('received message')
+  })
+  socket.send('hello')
 	socket.on('disconnect', function(){
 		console.log('disconnected: ' + socket.id);
 	})
   //ping();
 })
+
+
 
 // io.on('connect_error', function(connect_error){
 //   console.log('a user tried to connect');
