@@ -23,8 +23,8 @@ let canSchema = new mongoose.Schema({
 })
 
 let pairs = {
-  'bloopy': 'blimpy',
-  'blimpy': 'bloopy'
+  '::ffff:10.0.20.221': '::ffff:10.0.19.155',
+  '::ffff:10.0.19.155': '::ffff:10.0.20.221'
 }
 
 // let canPairSchema = new mongoose.Schema({
@@ -45,7 +45,33 @@ var client
 
 io.on('connection', function(socket){
   console.log('a user connected');
-  
+  let address = socket.handshake.address
+  console.log(`new ip address: ${address}`)
+  Can.find( {canName:address}, (err, cans) => {
+    console.log(`cans1: ${cans}`)
+    if (err) { 
+      return console.error(err)
+    } else {
+        if (cans.length == 0) {
+          console.log('no can in database')
+          console.log(cans)
+          let can = new Can({canName:address})
+          can.save( err => {
+              if (err) {
+                console.log(err)
+              } else {
+                console.log('we think we saved it')
+                socket.emit(can.messages.length)
+              }
+            })
+        } else {
+          socket.emit('messagelength', cans[0].messages.length)
+          console.log('this is where we will send back can state from server')
+          console.log(`cans: ${cans}`)
+        }
+    }
+  })
+
   socket.on('messageType', (msg) => { 
     var data = new Uint8Array(msg.sample);
     if (client) {
@@ -54,35 +80,9 @@ io.on('connection', function(socket){
     // player.feed(data);
   })
 
-  socket.on('initialConnection', (msg) => {
-    console.log('initialConnection')
-    Can.find( msg, (err, cans) => {
-      if (err) { 
-        return console.error(err)
-      } else {
-          if (cans.length == 0) {
-            console.log('no can in database')
-            console.log(cans)
-            let can = new Can(msg)
-            can.save( err => {
-                if (err) {
-                  console.log(err)
-                } else {
-                  console.log('we think we saved it')
-                }
-              })
-          } else {
-            console.log('this is where we will send back can state from server')
-            console.log(`cans: ${cans}`)
-          }
-      }
-    })
-  })
-
   socket.on('incomingMessage', (msg) => {
-    console.log(`msg.name: ${msg.name}`)
-    console.log(`pairs[msg.name]: ${pairs[msg.name]}`)
-    Can.update({canName:pairs[msg.name]}, {messages:[msg.message]}, (err, raw) => {
+    console.log(`msg: ${msg}`)
+    Can.update({canName:pairs[address]}, {messages:[msg]}, (err, raw) => {
       // console.log(`cans2: ${cans}`)
       if (!err) {
         // cans.messages.push(msg.message)
