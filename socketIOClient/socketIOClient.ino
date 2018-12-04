@@ -33,6 +33,23 @@ String on = "on";
 String off = "off";
 int messageState = 0;
 long messageslength = 0;
+enum CanState {
+    disconnected = 0xffffff, 
+    connected = 0xffffff, 
+    messageavailable = 0xffffff, 
+    messageplaying = 0xffffff,
+    recording = 0xffffff,
+    sendingavailable = 0xffffff,
+    sendingunavailable = 0xffffff 
+};
+
+// Robo India Tutorial 
+// Digital Input and Output on LED 
+// Hardware: NodeMCU
+
+const int RED = D1;
+const int GREEN = D2;
+const int BLUE = D3;
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
    
@@ -49,12 +66,16 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
     } else if (type == WStype_TEXT) {
         // USE_SERIAL.printf("[WSc] get text: %s\n", payload);
         USE_SERIAL.printf("[WSc] get text: %s\n", payload);
-
+        USE_SERIAL.printf("length: %d\n", length);
+        
         if (length > 2) {
             StaticJsonBuffer<200> jsonBuffer;
             JsonArray& parsed2 = jsonBuffer.parseArray(payload+2); //Parse message
             const char* typeofmessage = parsed2[0];
-            if (typeofmessage == "messagelength") {
+
+            USE_SERIAL.printf("typeofmessage %s\n", typeofmessage);
+
+            if (strcmp(typeofmessage,"messagelength")==0) {
                 messageslength = parsed2[1];
                 
                 USE_SERIAL.printf("Message type: %s\n", typeofmessage);
@@ -97,28 +118,37 @@ const int mvMax = 100;
 const int sampleWindow = 10;
 
 unsigned int sample;
+bool sent = false;
+bool sentInitialConnection = false;
+int counter = 0;
+bool listening = false;
+String inputString = "";         // a String to hold incoming data
+bool stringComplete = false;  // whether the string is complete
+uint64_t audioMessageId = 0;
 
 void setup() {
     // USE_SERIAL.begin(921600);
     USE_SERIAL.begin(115200);
 
     // WiFi.begin("Recurse Center", "nevergraduate!");
-
+    inputString.reserve(200);
     //Serial.setDebugOutput(true);
     USE_SERIAL.setDebugOutput(false);
 
-    // USE_SERIAL.println();
-    // USE_SERIAL.println();
-    // USE_SERIAL.println();
+    pinMode(RED, OUTPUT);
+    pinMode(GREEN, OUTPUT);
+    pinMode(BLUE, OUTPUT);
 
-      for(uint8_t t = 4; t > 0; t--) {
-          USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
-          USE_SERIAL.flush();
-          delay(1000);
-      }
+    // USE_SERIAL.println();
+    // USE_SERIAL.println();
+    // USE_SERIAL.println();
+    for(uint8_t t = 4; t > 0; t--) {
+      USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+      USE_SERIAL.flush();
+      delay(1000);
+    }
 
     WiFiMulti.addAP("Recurse Center", "nevergraduate!");
-
     //WiFi.disconnect();
     while(WiFiMulti.run() != WL_CONNECTED) {
         delay(100);
@@ -130,15 +160,41 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);
 }
 
-bool sent = false;
-bool sentInitialConnection = false;
-
-int counter = 0;
-
 void loop() {
     webSocket.loop();
-
     counter++;
+
+    analogWrite(RED, 50);
+    analogWrite(GREEN, 50);
+    analogWrite(BLUE, 200);  
+    delay (1000);
+    analogWrite(RED, 100);
+    analogWrite(GREEN, 100);
+    analogWrite(BLUE, 100); 
+    delay (1000);
+
+    while (Serial.available()) {
+        USE_SERIAL.printf("Serial.available()");  
+        // get the new byte:
+        char inChar = (char)Serial.read();
+        // add it to the inputString:
+        inputString += inChar;
+        // if the incoming character is a newline, set a flag so the main loop can
+        // do something about it:
+        if (inChar == '\n') {
+          stringComplete = true;
+        }
+    }
+
+    if (stringComplete) {
+        USE_SERIAL.printf("inputString: %s\n",inputString.c_str());
+        if (inputString.equals("s\n")) {
+            listening = !listening;
+            audioMessageId = millis();
+        }
+        inputString = "";
+        stringComplete = false;
+    }
 
     if(isConnected) {
 
@@ -156,54 +212,72 @@ void loop() {
             webSocket.sendTXT("2");
         }
     
-        //Audio stuff
-        unsigned long startMillis= millis();  // Start of sample window
-        unsigned int peakToPeak = 0;   // peak-to-peak level
+        if (listening) {
+            //Audio stuff
+            unsigned long startMillis= millis();  // Start of sample window
+            unsigned int peakToPeak = 0;   // peak-to-peak level
 
-        unsigned int signalMax = 0;
-        unsigned int signalMin = 1024;    
+            unsigned int signalMax = 0;
+            unsigned int signalMin = 1024;    
 
-        // collect data for sampleWindow mS
-        while (millis() - startMillis < sampleWindow)
-        {
-            sample = analogRead(0);
-            if (sample < 1024)  // toss out spurious readings
+            // collect data for sampleWindow mS
+            while (millis() - startMillis < sampleWindow)
             {
-                if (sample > signalMax)
+                sample = analogRead(0);
+                if (sample < 1024)  // toss out spurious readings
                 {
-                    signalMax = sample;  // save just the max levels
-                }
-                else if (sample < signalMin)
-                {
-                    signalMin = sample;  // save just the min levels
+                    if (sample > signalMax)
+                    {
+                        signalMax = sample;  // save just the max levels
+                    }
+                    else if (sample < signalMin)
+                    {
+                        signalMin = sample;  // save just the min levels
+                    }
                 }
             }
+
+            peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
+            // convert to volts
+            //double volts = (3.3 * peakToPeak) / 1024;
+            // convert to millivolts
+            // int millivolts = int(1000 * (3.3 * peakToPeak) / 1024);
+
+            String c = String(peakToPeak, DEC);
+            String t = String((unsigned int)audioMessageId, DEC);
+            String d = "42[\"audioMessage\",{\"id\":"+t+",\"sample\":\""+c+"\"}]";
+            webSocket.sendTXT(d);
+            // webSocket.sendBIN(&peakToPeak, sizeof(unsigned int));
+            // Serial.println(peakToPeak);
         }
 
-        peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
-        // convert to volts
-        //double volts = (3.3 * peakToPeak) / 1024;
-        // convert to millivolts
-        // int millivolts = int(1000 * (3.3 * peakToPeak) / 1024);
-
-        String c = String(peakToPeak, DEC);
-        String d = "42[\"fromArduino\",{\"sample\":\""+c+"\"}]";
-        webSocket.sendTXT(d);
-        // webSocket.sendBIN(&peakToPeak, sizeof(unsigned int));
-        // Serial.println(peakToPeak);
-
-        if (counter%1000 == 0) {
-            String messageText = "42[\"incomingMessage\", \"mewhats up?????\"]";
-            webSocket.sendTXT(messageText);
-            USE_SERIAL.printf("sent whats up message\n");
-        }
+        // if (counter%100000 == 0) {
+        //     String messageText = "42[\"incomingMessage\", \"mewhats up?????\"]";
+        //     webSocket.sendTXT(messageText);
+        //     USE_SERIAL.printf("sent whats up message\n");
+        // }
 
     }
 
     if (messageslength > 0) {
-        digitalWrite(LED_BUILTIN, HIGH);
-    } else {
         digitalWrite(LED_BUILTIN, LOW);
+    } else {
+        digitalWrite(LED_BUILTIN, HIGH);
     }
     
+}
+
+void serialEvent() {
+  USE_SERIAL.printf("Serial onEvent");  
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    inputString += inChar;
+    // if the incoming character is a newline, set a flag so the main loop can
+    // do something about it:
+    if (inChar == '\n') {
+      stringComplete = true;
+    }
+  }
 }

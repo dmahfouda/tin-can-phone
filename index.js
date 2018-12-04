@@ -52,23 +52,23 @@ io.on('connection', function(socket){
     if (err) { 
       return console.error(err)
     } else {
-        if (cans.length == 0) {
-          console.log('no can in database')
-          console.log(cans)
-          let can = new Can({canName:address})
-          can.save( err => {
-              if (err) {
-                console.log(err)
-              } else {
-                console.log('we think we saved it')
-                socket.emit(can.messages.length)
-              }
-            })
-        } else {
-          socket.emit('messagelength', cans[0].messages.length)
-          console.log('this is where we will send back can state from server')
-          console.log(`cans: ${cans}`)
-        }
+      if (cans.length == 0) {
+        console.log('no can in database')
+        console.log(cans)
+        let can = new Can({canName:address})
+        can.save( err => {
+            if (err) {
+              console.log(err)
+            } else {
+              console.log('we think we saved it')
+              socket.emit('messagelength', cans[0].messages.length)
+            }
+          })
+      } else {
+        socket.emit('messagelength', cans[0].messages.length)
+        console.log('this is where we will send back can state from server')
+        console.log(`cans: ${cans}`)
+      }
     }
   })
 
@@ -80,29 +80,38 @@ io.on('connection', function(socket){
     // player.feed(data);
   })
 
-  socket.on('incomingMessage', (msg) => {
-    console.log(`msg: ${msg}`)
-    Can.update({canName:pairs[address]}, {messages:[msg]}, (err, raw) => {
-      // console.log(`cans2: ${cans}`)
-      if (!err) {
-        // cans.messages.push(msg.message)
-        // cans.save(err => {
-        //   if (!err) {
-        //     console.log('we think we saved a message')
-        //   }
-        // })
-        console.log(raw)
-      } 
-      // else {
-        // console.log('no find error') 
-      // } 
-    }) 
-  })
+  // socket.on('incomingMessage', (msg) => {
+  //   console.log(`msg: ${msg}`)
+  //   Can.update({canName:pairs[address]}, {messages:[msg]}, (err, raw) => {
+  //     // console.log(`cans2: ${cans}`)
+  //     if (!err) {
+  //       // cans.messages.push(msg.message)
+  //       // cans.save(err => {
+  //       //   if (!err) {
+  //       //     console.log('we think we saved a message')
+  //       //   }
+  //       // })
+  //       console.log(raw)
+  //     } 
+  //     // else {
+  //       // console.log('no find error') 
+  //     // } 
+  //   }) 
+  // })
   
   // socket.send('hello')
 	socket.on('disconnect', function(){
 		console.log('disconnected: ' + socket.id);
 	})
+
+    // socket.send('hello')
+  socket.on('audioMessage', function(message){
+    Can.update({canName:pairs[address]}, {$push:{messages:[message]}}, (err, raw) => {
+      if (!err) {
+        console.log("we think we pushed audio data")
+      }
+    })
+  })
 
   socket.on('chat message', function(msg){
     // console.log('message: ' + msg);
