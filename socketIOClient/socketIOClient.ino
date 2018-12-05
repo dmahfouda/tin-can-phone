@@ -33,15 +33,10 @@ String on = "on";
 String off = "off";
 int messageState = 0;
 long messageslength = 0;
-enum CanState {
-    disconnected = 0xffffff, 
-    connected = 0xffffff, 
-    messageavailable = 0xffffff, 
-    messageplaying = 0xffffff,
-    recording = 0xffffff,
-    sendingavailable = 0xffffff,
-    sendingunavailable = 0xffffff 
-};
+enum CanState {wifidisconnected, serverdisconnected, messageavailable, 
+    messageplaying, recording, sendingavailable, sendingunavailable} canState;
+
+bool stateSwitch = true;
 
 // Robo India Tutorial 
 // Digital Input and Output on LED 
@@ -56,6 +51,8 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
     if (type == WStype_DISCONNECTED) {
         USE_SERIAL.printf("[WSc] Disconnected!\n");
         isConnected = false;
+        canState = serverdisconnected;
+        stateSwitch = true;
     } else if (type == WStype_CONNECTED) {
         USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
         isConnected = true;
@@ -83,8 +80,11 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
             
                 if (messageslength > 0) {
                     USE_SERIAL.printf("Messages greater than zero\n");
+                    canState = messageavailable;
+                    stateSwitch = true;
                 } else {
                     USE_SERIAL.printf("Messages zero\n");
+                    //we'll want to do a lookup to see if partner has read our messages
                 }
             }
         }
@@ -153,6 +153,8 @@ void setup() {
     while(WiFiMulti.run() != WL_CONNECTED) {
         delay(100);
     }
+    canState = serverdisconnected; 
+    stateSwitch = true;
 
     webSocket.beginSocketIO("10.0.20.109", 3000);
     //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
@@ -163,15 +165,48 @@ void setup() {
 void loop() {
     webSocket.loop();
     counter++;
-
-    analogWrite(RED, 50);
-    analogWrite(GREEN, 50);
-    analogWrite(BLUE, 200);  
-    delay (1000);
-    analogWrite(RED, 100);
-    analogWrite(GREEN, 100);
-    analogWrite(BLUE, 100); 
-    delay (1000);
+    //todo check for persistent wifi connection and update state if disconnected
+    if (stateSwitch) {
+        switch (canState) {
+            case wifidisconnected:
+                analogWrite(RED, 50);
+                analogWrite(GREEN, 50);
+                analogWrite(BLUE, 200);
+            break;
+            case serverdisconnected:
+                analogWrite(RED, 200);
+                analogWrite(GREEN, 50);
+                analogWrite(BLUE, 50); 
+            break;
+            case messageavailable:
+                analogWrite(RED, 50);
+                analogWrite(GREEN, 200);
+                analogWrite(BLUE, 50);
+            break; 
+            case messageplaying:
+                analogWrite(RED, 100);
+                analogWrite(GREEN, 100);
+                analogWrite(BLUE, 200);
+            break; 
+            case recording:
+                analogWrite(RED, 200);
+                analogWrite(GREEN, 100);
+                analogWrite(BLUE, 100);
+             break; 
+            case sendingavailable:
+                analogWrite(RED, 100);
+                analogWrite(GREEN, 200);
+                analogWrite(BLUE, 100);
+            break; 
+            case sendingunavailable:
+                analogWrite(RED, 100);
+                analogWrite(GREEN, 50);
+                analogWrite(BLUE, 50); 
+            break;
+        }
+        USE_SERIAL.printf("CanState %d\n",canState);
+        stateSwitch = false;
+    }
 
     while (Serial.available()) {
         USE_SERIAL.printf("Serial.available()");  
@@ -191,13 +226,29 @@ void loop() {
         if (inputString.equals("s\n")) {
             listening = !listening;
             audioMessageId = millis();
+        } else if (inputString.equals("b\n")) {
+            switch (canState) {
+                case messageavailable:
+                    canState = messageplaying;
+                    stateSwitch = true;
+                break;
+                case recording:
+                    canState = sendingunavailable;
+                    stateSwitch = true;
+                break;
+                case sendingavailable:
+                    canState = recording;
+                    stateSwitch = true;
+                break;
+            }
+            canState = static_cast<CanState>((canState+1)%7);
+            USE_SERIAL.printf("%d\n", canState);
         }
         inputString = "";
         stringComplete = false;
     }
 
     if(isConnected) {
-
         uint64_t now = millis();
         if(now - messageTimestamp > MESSAGE_INTERVAL) {
             messageTimestamp = now;
@@ -257,6 +308,9 @@ void loop() {
         //     USE_SERIAL.printf("sent whats up message\n");
         // }
 
+    } else {
+        canState = serverdisconnected;
+        stateSwitch = true;
     }
 
     if (messageslength > 0) {
