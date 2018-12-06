@@ -15,8 +15,6 @@
 
 #include <Hash.h>
 
-ESP8266WiFiMulti WiFiMulti;
-WebSocketsClient webSocket;
 
 
 #define USE_SERIAL Serial
@@ -33,10 +31,219 @@ String on = "on";
 String off = "off";
 int messageState = 0;
 long messageslength = 0;
-enum CanState {wifidisconnected, serverdisconnected, messageavailable, 
+enum CanState {wifidisconnected, socketdisconnected, messageavailable, 
     messageplaying, recording, sendingavailable, sendingunavailable} canState;
 
-bool stateSwitch = true;
+class CanComponentStates {
+    private:
+        bool wifi, socket, incoming, outgoing, shake;
+
+        CanState evaluate() {
+            if(wifi) {
+                if(socket) {
+                    if(incoming) {
+                        return messageavailable;
+                    } else if(outgoing) {
+                        return sendingunavailable;
+                    } else {
+                        return sendingavailable;
+                    }
+                } else {
+                    return socketdisconnected;
+                }
+            } else {
+                return wifidisconnected;
+            }
+        }
+    public:
+        CanState setWifi(bool connected) {
+            this->wifi = connected;
+            return this->evaluate();
+        }
+
+        CanState setSocket(bool connected) {
+            this->socket = connected;
+            return this->evaluate();
+        }
+
+        CanState setIncoming(bool incoming) {
+            this->incoming = incoming;
+            return this->evaluate();
+        }
+
+        CanState setOutgoing(bool outgoing) {
+            this->outgoing = outgoing;
+            return this->evaluate();
+        }
+}
+
+// class CanState {
+//     int r, g, b;
+//     CanComponentStates components;
+
+//     void onShake() {
+//         // some action
+//         // change led colors
+//     }
+// }
+
+class Can {
+    CanState canState;
+    CanComponentStates canComponentStates;
+    ESP8266WiFiMulti WiFiMulti;
+    WebSocketsClient webSocket;
+
+    void setCanState(CanState canState) {
+        this->canState = canState;
+        this->displayLED()
+    }
+
+    void displayLED() {
+        switch(canState) {
+            case wifidisconnected:
+                analogWrite(RED, 50);
+                analogWrite(GREEN, 50);
+                analogWrite(BLUE, 200);
+            break;
+            case serverdisconnected:
+                analogWrite(RED, 200);
+                analogWrite(GREEN, 50);
+                analogWrite(BLUE, 50); 
+            break;
+            case messageavailable:
+                analogWrite(RED, 50);
+                analogWrite(GREEN, 200);
+                analogWrite(BLUE, 50);
+            break; 
+            case messageplaying:
+                analogWrite(RED, 100);
+                analogWrite(GREEN, 100);
+                analogWrite(BLUE, 200);
+            break; 
+            case recording:
+                analogWrite(RED, 200);
+                analogWrite(GREEN, 100);
+                analogWrite(BLUE, 100);
+             break; 
+            case sendingavailable:
+                analogWrite(RED, 100);
+                analogWrite(GREEN, 200);
+                analogWrite(BLUE, 100);
+            break; 
+            case sendingunavailable:
+                analogWrite(RED, 100);
+                analogWrite(GREEN, 50);
+                analogWrite(BLUE, 50); 
+            break;
+            default: /* erroneous state */
+                analogWrite(RED, 100);
+                analogWrite(GREEN, 50);
+                analogWrite(BLUE, 50);
+        }
+        USE_SERIAL.printf("CanState %d\n",this->canState);
+    }
+
+    void connectToWifi(String network, String password) {
+        this->WiFiMulti.addAP(network, password);
+        while(this->WiFiMulti.run() != WL_CONNECTED) {
+            delay(100);
+        }
+        this->canState = this->canComponentStates.setWifi(true);        
+    }
+
+    void openWebSocket(String ip, int port) {
+        this->webSocket.beginSocketIO(ip, port);
+        //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
+        this->webSocket.onEvent(this->webSocketEvent);
+    }
+
+    void loop() {
+        this->webSocket.loop();
+        while(Serial.available()) {
+            // read a 'b'
+        }
+        this.setCanState(this->shakeEvent());
+
+    }
+
+    void onShake(CanState (*f)(void *)) {
+        this->shakeEvent = f;
+    }
+
+    void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+        if (type == WStype_DISCONNECTED) {
+            USE_SERIAL.printf("[WSc] Disconnected!\n");
+            this->setCanState(this->canComponentStates.setSocket(false));
+        } else if (type == WStype_CONNECTED) {
+            USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
+            this->canState = this->canComponentStates.setSocket(true);
+            // send message to server when Connected
+            // socket.io upgrade confirmation message (required)
+            webSocket.sendTXT("5");
+        } else if (type == WStype_TEXT) {
+            // USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+            USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+            USE_SERIAL.printf("length: %d\n", length);
+            
+            if (length > 2) {
+                StaticJsonBuffer<200> jsonBuffer;
+                JsonArray& parsed2 = jsonBuffer.parseArray(payload+2); //Parse message
+                const char* typeofmessage = parsed2[0];
+
+                USE_SERIAL.printf("typeofmessage %s\n", typeofmessage);
+
+                if (strcmp(typeofmessage,"messagelength")==0) {
+                    messageslength = parsed2[1];
+                    
+                    USE_SERIAL.printf("Message type: %s\n", typeofmessage);
+                    USE_SERIAL.printf("parsed message length = %d\n", messageslength);
+                
+                    if (messageslength > 0) {
+                        USE_SERIAL.printf("Messages greater than zero\n");
+                        this->canState = this->canComponentStates.setIncoming(true);
+                    } else {
+                        USE_SERIAL.printf("Messages zero\n");
+                        this->canState = this->canComponentStates.setIncoming(false);
+                        //we'll want to do a lookup to see if partner has read our messages
+                    }
+                }
+            }
+        } else if (type == WStype_BIN) {
+            // USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
+            // hexdump(payload, length);
+            // send data to server
+            // webSocket.sendBIN(payload, length);
+        }
+    }
+    
+}
+
+// // what we want
+// CanCompnentStates canComponentStates;
+// canComponentStates.wifi = true;
+// canComponentStates.socket = true;
+
+// CanState canState;
+
+// canState = canComponentStates.setWifi(true);
+
+// CanState canState;
+// canState.connectToWifi();
+// canState.connectToSocket();
+
+// CanState canState = canComponentStates.evaluate();
+// setLED(canState);
+// onShake(nextState)
+
+// void nextState(CanState) {
+// }
+
+
+
+
+
+
+//bool stateSwitch = true;
 
 // Robo India Tutorial 
 // Digital Input and Output on LED 
@@ -46,70 +253,70 @@ const int RED = D1;
 const int GREEN = D2;
 const int BLUE = D3;
 
-void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+// void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
    
-    if (type == WStype_DISCONNECTED) {
-        USE_SERIAL.printf("[WSc] Disconnected!\n");
-        isConnected = false;
-        canState = serverdisconnected;
-        stateSwitch = true;
-    } else if (type == WStype_CONNECTED) {
-        USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
-        isConnected = true;
+//     if (type == WStype_DISCONNECTED) {
+//         USE_SERIAL.printf("[WSc] Disconnected!\n");
+//         isConnected = false;
+//         canState = serverdisconnected;
+//         stateSwitch = true;
+//     } else if (type == WStype_CONNECTED) {
+//         USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
+//         isConnected = true;
 
-	    // send message to server when Connected
-        // socket.io upgrade confirmation message (required)
-		webSocket.sendTXT("5");
-    } else if (type == WStype_TEXT) {
-        // USE_SERIAL.printf("[WSc] get text: %s\n", payload);
-        USE_SERIAL.printf("[WSc] get text: %s\n", payload);
-        USE_SERIAL.printf("length: %d\n", length);
+// 	    // send message to server when Connected
+//         // socket.io upgrade confirmation message (required)
+// 		webSocket.sendTXT("5");
+//     } else if (type == WStype_TEXT) {
+//         // USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+//         USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+//         USE_SERIAL.printf("length: %d\n", length);
         
-        if (length > 2) {
-            StaticJsonBuffer<200> jsonBuffer;
-            JsonArray& parsed2 = jsonBuffer.parseArray(payload+2); //Parse message
-            const char* typeofmessage = parsed2[0];
+//         if (length > 2) {
+//             StaticJsonBuffer<200> jsonBuffer;
+//             JsonArray& parsed2 = jsonBuffer.parseArray(payload+2); //Parse message
+//             const char* typeofmessage = parsed2[0];
 
-            USE_SERIAL.printf("typeofmessage %s\n", typeofmessage);
+//             USE_SERIAL.printf("typeofmessage %s\n", typeofmessage);
 
-            if (strcmp(typeofmessage,"messagelength")==0) {
-                messageslength = parsed2[1];
+//             if (strcmp(typeofmessage,"messagelength")==0) {
+//                 messageslength = parsed2[1];
                 
-                USE_SERIAL.printf("Message type: %s\n", typeofmessage);
-                USE_SERIAL.printf("parsed message length = %d\n", messageslength);
+//                 USE_SERIAL.printf("Message type: %s\n", typeofmessage);
+//                 USE_SERIAL.printf("parsed message length = %d\n", messageslength);
             
-                if (messageslength > 0) {
-                    USE_SERIAL.printf("Messages greater than zero\n");
-                    canState = messageavailable;
-                    stateSwitch = true;
-                } else {
-                    USE_SERIAL.printf("Messages zero\n");
-                    //we'll want to do a lookup to see if partner has read our messages
-                }
-            }
-        }
+//                 if (messageslength > 0) {
+//                     USE_SERIAL.printf("Messages greater than zero\n");
+//                     canState = messageavailable;
+//                     stateSwitch = true;
+//                 } else {
+//                     USE_SERIAL.printf("Messages zero\n");
+//                     //we'll want to do a lookup to see if partner has read our messages
+//                 }
+//             }
+//         }
 
-        // USE_SERIAL.printf("%s\n",payload[1]);
+//         // USE_SERIAL.printf("%s\n",payload[1]);
         
-        // if (on.equals((char*)payload)) {
-        //     messageState = 1;
-        //     // USE_SERIAL.printf("turned on" );
-        // }
-        // if (off.equals((char*)payload)) {
-        //     messageState = 0;
-        //     // USE_SERIAL.printf("turned off" );
-        // }
+//         // if (on.equals((char*)payload)) {
+//         //     messageState = 1;
+//         //     // USE_SERIAL.printf("turned on" );
+//         // }
+//         // if (off.equals((char*)payload)) {
+//         //     messageState = 0;
+//         //     // USE_SERIAL.printf("turned off" );
+//         // }
 
-		// send message to server
-		// webSocket.sendTXT("message here");
-    } else if (type == WStype_BIN) {
-        // USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
-        // hexdump(payload, length);
+// 		// send message to server
+// 		// webSocket.sendTXT("message here");
+//     } else if (type == WStype_BIN) {
+//         // USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
+//         // hexdump(payload, length);
 
-        // send data to server
-        // webSocket.sendBIN(payload, length);
-    }
-}
+//         // send data to server
+//         // webSocket.sendBIN(payload, length);
+//     }
+// }
 
 const int mvMax = 100;
 
@@ -126,40 +333,97 @@ String inputString = "";         // a String to hold incoming data
 bool stringComplete = false;  // whether the string is complete
 uint64_t audioMessageId = 0;
 
+
+Can can;
+
 void setup() {
-    // USE_SERIAL.begin(921600);
     USE_SERIAL.begin(115200);
-
-    // WiFi.begin("Recurse Center", "nevergraduate!");
-    inputString.reserve(200);
-    //Serial.setDebugOutput(true);
-    USE_SERIAL.setDebugOutput(false);
-
+    
+    // TODO: move to Can object
     pinMode(RED, OUTPUT);
     pinMode(GREEN, OUTPUT);
     pinMode(BLUE, OUTPUT);
 
-    // USE_SERIAL.println();
-    // USE_SERIAL.println();
-    // USE_SERIAL.println();
-    for(uint8_t t = 4; t > 0; t--) {
-      USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
-      USE_SERIAL.flush();
-      delay(1000);
+    can.connectToWifi("Recurse Center", "nevergraduate!");
+    can.openSocket("10.0.20.109", 3000);
+}
+
+// void setup() {
+//     // USE_SERIAL.begin(921600);
+//     USE_SERIAL.begin(115200);
+//     // WiFi.begin("Recurse Center", "nevergraduate!");
+//     inputString.reserve(200);
+//     //Serial.setDebugOutput(true);
+//     USE_SERIAL.setDebugOutput(false);
+
+//     pinMode(RED, OUTPUT);
+//     pinMode(GREEN, OUTPUT);
+//     pinMode(BLUE, OUTPUT);
+
+//     // USE_SERIAL.println();
+//     // USE_SERIAL.println();
+//     // USE_SERIAL.println();
+//     for(uint8_t t = 4; t > 0; t--) {
+//       USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+//       USE_SERIAL.flush();
+//       delay(1000);
+//     }
+
+//     WiFiMulti.addAP("Recurse Center", "nevergraduate!");
+//     //WiFi.disconnect();
+//     while(WiFiMulti.run() != WL_CONNECTED) {
+//         delay(100);
+//     }
+//     canState = serverdisconnected; 
+//     stateSwitch = true;
+
+//     webSocket.beginSocketIO("10.0.20.109", 3000);
+//     //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
+//     webSocket.onEvent(webSocketEvent);
+//     pinMode(LED_BUILTIN, OUTPUT);
+// }
+
+void loop() {
+    can.loop();
+    while (Serial.available()) {
+        USE_SERIAL.printf("Serial.available()");  
+        // get the new byte:
+        char inChar = (char)Serial.read();
+        // add it to the inputString:
+        inputString += inChar;
+        // if the incoming character is a newline, set a flag so the main loop can
+        // do something about it:
+        if (inChar == '\n') {
+          stringComplete = true;
+        }
     }
 
-    WiFiMulti.addAP("Recurse Center", "nevergraduate!");
-    //WiFi.disconnect();
-    while(WiFiMulti.run() != WL_CONNECTED) {
-        delay(100);
+    if (stringComplete) {
+        USE_SERIAL.printf("inputString: %s\n",inputString.c_str());
+        if (inputString.equals("s\n")) {
+            listening = !listening;
+            audioMessageId = millis();
+        } else if (inputString.equals("b\n")) {
+            switch (canState) {
+                case messageavailable:
+                    canState = messageplaying;
+                    stateSwitch = true;
+                break;
+                case recording:
+                    canState = sendingunavailable;
+                    stateSwitch = true;
+                break;
+                case sendingavailable:
+                    canState = recording;
+                    stateSwitch = true;
+                break;
+            }
+            canState = static_cast<CanState>((canState+1)%7);
+            USE_SERIAL.printf("%d\n", canState);
+        }
+        inputString = "";
+        stringComplete = false;
     }
-    canState = serverdisconnected; 
-    stateSwitch = true;
-
-    webSocket.beginSocketIO("10.0.20.109", 3000);
-    //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
-    webSocket.onEvent(webSocketEvent);
-    pinMode(LED_BUILTIN, OUTPUT);
 }
 
 void loop() {
