@@ -220,6 +220,7 @@ class Can {
                     String id = String((unsigned int)audioMessageId, DEC);
                     String message = "42[\"audioMessage\",{\"id\":" + id + ",\"sample\":\"" + result + "\"}]";
                     webSocket.sendTXT(message);
+                    //this->setCanState(this->canComponentStates.setShake(false));
                     // Serial.println(peakToPeak);
                 } else if(this->canState == messageplaying) {
 
