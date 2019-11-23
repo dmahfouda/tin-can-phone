@@ -6,6 +6,7 @@
 #include <ArduinoJson.h>
 #include <WebSocketsClient.h>
 #include <Hash.h>
+#include "base64.hpp"
 
 #define USE_SERIAL Serial
 #define MESSAGE_INTERVAL 30000
@@ -20,10 +21,18 @@ const int sampleWindow = 10;
 unsigned int sample;
 uint64_t audioMessageId = 0;
 
+void record(unsigned char [], int length);
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length);
 
-enum CanState {wifidisconnected, socketdisconnected, messageavailable,
-    messageplaying, recording, sendingavailable, sendingunavailable};
+enum CanState {
+  wifidisconnected,   //0
+  socketdisconnected, //1
+  messageavailable,   //2
+  messageplaying,     //3
+  recording,          //4
+  sendingavailable,   //5
+  sendingunavailable  //6
+};
 
 class CanComponentStates {
     private:
@@ -169,6 +178,7 @@ class Can {
             this->WiFiMulti.addAP(network, password);
             while(this->WiFiMulti.run() != WL_CONNECTED) {
                 delay(100);
+                USE_SERIAL.printf("could not connect to network: %s \n", network);
             }
             this->canState = this->canComponentStates.setWifi(true);
         }
@@ -193,40 +203,65 @@ class Can {
                     webSocket.sendTXT("2");
                 }
                 if(this->canState == recording) {
-                    unsigned long startMillis = millis();  // Start of sample window
-                    unsigned int peakToPeak = 0;   // peak-to-peak level
-                    unsigned int signalMax = 0;
-                    unsigned int signalMin = 1024;
-                    // collect data for sampleWindow mS
-                    while (millis() - startMillis < sampleWindow) {
-                        sample = analogRead(0);
-                        if (sample < 1024) { // toss out spurious readings
-                            if (sample > signalMax) {
-                                signalMax = sample;  // save just the max levels
-                            }
-                            else if (sample < signalMin) {
-                                signalMin = sample;  // save just the min levels
-                            }
-                        }
+                    // record samples
+                    int length = 480;
+                    unsigned char samples[length];
+                    record(samples, length);
+                    // convert to base64
+                    int encodedLength = encode_base64_length(length);
+                    unsigned char encodedSamples[encodedLength];
+                    encode_base64(samples, length, encodedSamples);
+                    // build up String object
+                    String result;
+                    for(int i = 0; i < encodedLength; i++) {
+                      result += (char)encodedSamples[i];
                     }
-                    peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
-
-                    String amplitude = String(peakToPeak, DEC);
+                    Serial.println(result);
                     String id = String((unsigned int)audioMessageId, DEC);
-                    String message = "42[\"audioMessage\",{\"id\":" + id + ",\"sample\":\"" + amplitude + "\"}]";
+                    String message = "42[\"audioMessage\",{\"id\":" + id + ",\"sample\":\"" + result + "\"}]";
                     webSocket.sendTXT(message);
                     // Serial.println(peakToPeak);
+                } else if(this->canState == messageplaying) {
+
                 }
             }
         }
 };
 
+// void record(String &amplitude) {
+//   unsigned long startMillis = millis();  // Start of sample window
+//   unsigned int peakToPeak = 0;   // peak-to-peak level
+//   unsigned int signalMax = 0;
+//   unsigned int signalMin = 1024;
+//   // collect data for sampleWindow mS
+//   while (millis() - startMillis < sampleWindow) {
+//       sample = analogRead(0);
+//       if (sample < 1024) { // toss out spurious readings
+//           if (sample > signalMax) {
+//               signalMax = sample;  // save just the max levels
+//           }
+//           else if (sample < signalMin) {
+//               signalMin = sample;  // save just the min levels
+//           }
+//       }
+//   }
+//   peakToPeak = signalMax - signalMin;  // max - min = peak-peak amplitude
+//   amplitude = String(peakToPeak, DEC);
+// }
+
+void record (unsigned char buffer[], int length)
+{
+  for(int i=0; i < length; i++)
+  {
+      buffer[i] = char(analogRead(A0)/4);
+  }
+}
+
 Can can;
 
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
     if (type == WStype_DISCONNECTED) {
-        USE_SERIAL.printf("[WSc] Disconnected!\n");
-        can.setCanState(can.canComponentStates.setSocket(false));
+         can.setCanState(can.canComponentStates.setSocket(false));
     } else if (type == WStype_CONNECTED) {
         USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
         can.setCanState(can.canComponentStates.setSocket(true));
@@ -257,7 +292,8 @@ void readSerial () {
     bool stringComplete = false;
 
     while (Serial.available()) {
-        USE_SERIAL.printf("Serial.available()");
+        USE_SERIAL.printf("CanState: %d\n", can.getCanState());
+        USE_SERIAL.printf("Serial.available()\n");
         // get the new byte:
         char inChar = (char)Serial.read();
         // add it to the inputString:
@@ -272,9 +308,11 @@ void readSerial () {
     if (stringComplete) {
         USE_SERIAL.printf("inputString: %s\n",inputString.c_str());
         if (inputString.equals("s\n")) {
-            can.canComponentStates.setShake(!can.canComponentStates.getShake());
+            USE_SERIAL.printf("shake: %d\n", can.canComponentStates.getShake());
+            can.setCanState(can.canComponentStates.setShake(!can.canComponentStates.getShake()));
+            USE_SERIAL.printf("shake: %d\n", can.canComponentStates.getShake());
         }
-        USE_SERIAL.printf("%d\n", can.getCanState());
+        USE_SERIAL.printf("CanState: %d\n", can.getCanState());
         inputString = "";
         stringComplete = false;
     }
@@ -283,8 +321,12 @@ void readSerial () {
 
 void setup() {
     USE_SERIAL.begin(115200);
-    can.connectToWifi("Recurse Center", "nevergraduate!");
-    can.openWebSocket("10.0.20.109", 3000);
+    //can.connectToWifi("Recurse Center", "nevergraduate!");
+    can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
+    //can.connectToWifi("s&m", "passwordispassword");
+    //can.openWebSocket("10.0.20.109", 3000); Recurse
+    can.openWebSocket("192.168.1.18", 3000); //David's House
+    //can.openWebSocket("192.168.1.3", 3000); Mikey's House
 }
 
 void loop() {

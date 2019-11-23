@@ -23,8 +23,10 @@ let canSchema = new mongoose.Schema({
 })
 
 let pairs = {
-  '::ffff:10.0.20.221': '::ffff:10.0.19.155',
-  '::ffff:10.0.19.155': '::ffff:10.0.20.221'
+  '::ffff:10.0.20.221': '::ffff:192.168.1.219',
+  '::ffff:192.168.1.219': '::ffff:10.0.20.221'
+  // '::ffff:10.0.20.221': '::ffff:10.0.19.155',
+  // '::ffff:10.0.19.155': '::ffff:10.0.20.221'
 }
 
 // let canPairSchema = new mongoose.Schema({
@@ -49,7 +51,7 @@ io.on('connection', function(socket){
   console.log(`new ip address: ${address}`)
   Can.find( {canName:address}, (err, cans) => {
     console.log(`cans1: ${cans}`)
-    if (err) { 
+    if (err) {
       return console.error(err)
     } else {
       if (cans.length == 0) {
@@ -72,7 +74,7 @@ io.on('connection', function(socket){
     }
   })
 
-  socket.on('messageType', (msg) => { 
+  socket.on('messageType', (msg) => {
     var data = new Uint8Array(msg.sample);
     if (client) {
       client.emit('audio', data)
@@ -92,13 +94,13 @@ io.on('connection', function(socket){
   //       //   }
   //       // })
   //       console.log(raw)
-  //     } 
+  //     }
   //     // else {
-  //       // console.log('no find error') 
-  //     // } 
-  //   }) 
+  //       // console.log('no find error')
+  //     // }
+  //   })
   // })
-  
+
   // socket.send('hello')
 	socket.on('disconnect', function(){
 		console.log('disconnected: ' + socket.id);
@@ -106,9 +108,10 @@ io.on('connection', function(socket){
 
     // socket.send('hello')
   socket.on('audioMessage', function(message){
-    Can.update({canName:pairs[address]}, {$push:{messages:[message]}}, (err, raw) => {
+    console.log("audio message from: "+address)
+    Can.updateOne({canName:address}, {$push:{messages:[message]}}, (err, raw) => {
       if (!err) {
-        console.log("we think we pushed audio data")
+        console.log(message["sample"])
       }
     })
   })
@@ -123,7 +126,7 @@ io.on('connection', function(socket){
     client = socket.conn
     // socket.emit('ack')
   })
-  
+
   //ping();
 })
 
