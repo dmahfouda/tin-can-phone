@@ -7,10 +7,18 @@
 #include <WebSocketsClient.h>
 #include <Hash.h>
 #include "base64.hpp"
+#include "AudioOutputI2S.h"
+#include "AudioFileSourcePROGMEM.h"
+#include "AudioFileSourceHTTPStream.h"
+#include "AudioGeneratorMP3.h"
+#include "AudioFileSourceBuffer.h"
+#include "AudioLogger.h"
 
 #define USE_SERIAL Serial
 #define MESSAGE_INTERVAL 30000
 #define HEARTBEAT_INTERVAL 25000
+
+//audioLogger = &Serial;
 
 uint64_t messageTimestamp = 0;
 uint64_t heartbeatTimestamp = 0;
@@ -41,7 +49,9 @@ class CanComponentStates {
 
         CanState evaluate() {
             if(wifi) {
+              this->socket=1;
                 if(socket) {
+                  this->incoming=1;
                     if(incoming) {
                         if (shake) {
                             return messageplaying;
@@ -223,7 +233,55 @@ class Can {
                     //this->setCanState(this->canComponentStates.setShake(false));
                     // Serial.println(peakToPeak);
                 } else if(this->canState == messageplaying) {
+                  // #define I2SO_DATA 3
+                  // #define I2SO_BCK  15
+                  // #define I2SO_WS   2
+                  // bool AudioOutputI2S::SetPinout(int bclk, int wclk, int dout)
+                    // int rate = 8000;
+                    // int frequency = 440;
+                    // int bps = 16;
+                    // int halfWavelength = rate / frequency;
+                    //
+                    // AudioOutputI2S out;
+                    // out.SetPinout(15, 2, 3);
+                    // out.SetRate(rate);
+                    // out.SetBitsPerSample(bps);
+                    // out.SetChannels(2);
+                    // if (out.begin()) {
+                    //   Serial.println("Success");
+                    // }
+                    // int16_t sample = 500;
+                    // for(int count = 0; count < 10000; count++) {
+                    //   if (count % halfWavelength == 0) {
+                    //     // invert the sample every half wavelength count multiple to generate square wave
+                    //     sample = -1 * sample;
+                    //   }
+                    //   int16_t samples[2] = { sample, sample };
+                    //   out.ConsumeSample(samples);
+                    //   // increment the counter for the next sample
+                    //   count++;
+                    // }
+                    const char *URL = "https://ia802904.us.archive.org/23/items/UnrealSignIllusionsWav180.wav/Unreal%20Sign%20-%20Illusions%20%28Wav%2C%20180%29.wav.mp3";
+                    AudioFileSourceHTTPStream *file = new AudioFileSourceHTTPStream(URL);
+                    if (!file->isOpen()) {
+                      Serial.printf("File not open\n");
+                    }
+                    AudioFileSourceBuffer *buff = new AudioFileSourceBuffer(file, 2048);
+                    AudioOutputI2S *out = new AudioOutputI2S();
+                    AudioGeneratorMP3 *mp3 = new AudioGeneratorMP3();
+                    mp3->begin(buff, out);
 
+                    while(true) {
+                      if (mp3->isRunning()) {
+                        Serial.printf("Isn't that a nice sound?\n");
+                        if (!mp3->loop()) mp3->stop();
+                      } else {
+                        this->setCanState(this->canComponentStates.setIncoming(0));
+                        this->setCanState(this->canComponentStates.setShake(0));
+                        Serial.printf("WAV done\n");
+                        break;
+                      }
+                    }
                 }
             }
         }
@@ -323,11 +381,11 @@ void readSerial () {
 void setup() {
     USE_SERIAL.begin(115200);
     //can.connectToWifi("Recurse Center", "nevergraduate!");
-    can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
-    //can.connectToWifi("s&m", "passwordispassword");
+    //can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
+    can.connectToWifi("s&m", "passwordispassword");
     //can.openWebSocket("10.0.20.109", 3000); Recurse
-    can.openWebSocket("192.168.1.18", 3000); //David's House
-    //can.openWebSocket("192.168.1.3", 3000); Mikey's House
+    //can.openWebSocket("192.168.1.18", 3000); //David's House
+    can.openWebSocket("192.168.1.3", 3000); //Mikey's House
 }
 
 void loop() {
