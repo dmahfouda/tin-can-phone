@@ -2,6 +2,10 @@ var express = require('express')
 var app = express()
 var http = require('http').Server(app)
 var io = require('socket.io')(http)
+var fs = require('fs')
+var Lame = require('node-lame').Lame;
+var stream = require('stream');
+
 
 app.use(express.static('build'))
 
@@ -43,7 +47,50 @@ let Can = mongoose.model('Can', canSchema)
 //   }
 // })
 
-var client
+app.get('/mp3', function(req, res) {
+  let address = req.connection.remoteAddress;
+  Can.find({ canName: address }, (err, cans) => {
+    if(err) {
+      console.log(error);
+    } else if(cans.length == 0) {
+      console.log(`no cans found with name: ${name}`);
+    } else {
+      let result = "";
+      let can = cans[0];
+      for(let i = 0; i < can.messages.length; i++) {
+        result += can.messages[i].sample;
+      }
+      let buffer = new Buffer(result, 'base64');
+
+      const encoder = new Lame({
+        output: "buffer",
+        raw: true,
+        bitwidth: 8,
+        mode: "m",
+        sfreq: 8,
+        bitrate: 40
+      }).setBuffer(buffer);
+
+      encoder.encode().then(() => {
+        console.log("success encoded pcm data from mongodb");
+        let result = encoder.getBuffer();
+
+        res.status(206).header({
+          'Content-Type': 'audio/mpeg',
+          'Content-Length': result.length,
+        });
+
+        let readStream = new stream.PassThrough();
+        readStream.end(result);
+        readStream.pipe(res);
+      }).catch(error => {
+        console.log(error)
+      });
+    }
+  });
+});
+
+var client;
 
 io.on('connection', function(socket){
   console.log('a user connected');
@@ -112,6 +159,8 @@ io.on('connection', function(socket){
     Can.updateOne({canName:address}, {$push:{messages:[message]}}, (err, raw) => {
       if (!err) {
         console.log(message["sample"])
+      } else {
+        console.log(error);
       }
     })
   })

@@ -9,6 +9,7 @@
 #include "base64.hpp"
 #include "AudioOutputI2S.h"
 #include "AudioFileSourcePROGMEM.h"
+#include "AudioFileSourceICYStream.h"
 #include "AudioFileSourceHTTPStream.h"
 #include "AudioGeneratorMP3.h"
 #include "AudioFileSourceBuffer.h"
@@ -18,7 +19,7 @@
 #define MESSAGE_INTERVAL 30000
 #define HEARTBEAT_INTERVAL 25000
 
-//audioLogger = &Serial;
+//Print* audioLogger = &Serial;
 
 uint64_t messageTimestamp = 0;
 uint64_t heartbeatTimestamp = 0;
@@ -49,9 +50,9 @@ class CanComponentStates {
 
         CanState evaluate() {
             if(wifi) {
-              this->socket=1;
+              //this->socket=1;
                 if(socket) {
-                  this->incoming=1;
+                  //this->incoming=1;
                     if(incoming) {
                         if (shake) {
                             return messageplaying;
@@ -261,23 +262,27 @@ class Can {
                     //   // increment the counter for the next sample
                     //   count++;
                     // }
-                    const char *URL = "https://ia802904.us.archive.org/23/items/UnrealSignIllusionsWav180.wav/Unreal%20Sign%20-%20Illusions%20%28Wav%2C%20180%29.wav.mp3";
+                    //const char *URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+                    //const char *URL =  "http://46.252.154.133:8080";
+                    const char *URL =  "http://192.168.1.18:3000/mp3";
                     AudioFileSourceHTTPStream *file = new AudioFileSourceHTTPStream(URL);
-                    if (!file->isOpen()) {
-                      Serial.printf("File not open\n");
-                    }
+                    //AudioFileSourceICYStream *file = new AudioFileSourceICYStream(URL);
                     AudioFileSourceBuffer *buff = new AudioFileSourceBuffer(file, 2048);
                     AudioOutputI2S *out = new AudioOutputI2S();
                     AudioGeneratorMP3 *mp3 = new AudioGeneratorMP3();
                     mp3->begin(buff, out);
+
+                    if (!file->isOpen()) {
+                      Serial.printf("File not open\n");
+                    }
 
                     while(true) {
                       if (mp3->isRunning()) {
                         Serial.printf("Isn't that a nice sound?\n");
                         if (!mp3->loop()) mp3->stop();
                       } else {
-                        this->setCanState(this->canComponentStates.setIncoming(0));
                         this->setCanState(this->canComponentStates.setShake(0));
+                        this->setCanState(this->canComponentStates.setIncoming(0));
                         Serial.printf("WAV done\n");
                         break;
                       }
@@ -381,11 +386,11 @@ void readSerial () {
 void setup() {
     USE_SERIAL.begin(115200);
     //can.connectToWifi("Recurse Center", "nevergraduate!");
-    //can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
-    can.connectToWifi("s&m", "passwordispassword");
+    can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
+    //can.connectToWifi("s&m", "passwordispassword");
     //can.openWebSocket("10.0.20.109", 3000); Recurse
-    //can.openWebSocket("192.168.1.18", 3000); //David's House
-    can.openWebSocket("192.168.1.3", 3000); //Mikey's House
+    can.openWebSocket("192.168.1.18", 3000); //David's House
+    //can.openWebSocket("192.168.1.3", 3000); //Mikey's House
 }
 
 void loop() {
