@@ -196,6 +196,7 @@ class Can {
 
         void openWebSocket(String ip, int port) {
             this->webSocket.beginSocketIO(ip, port);
+            this->webSocket.setExtraHeaders("name:david");
             //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
             this->webSocket.onEvent(webSocketEvent);
         }
@@ -264,7 +265,7 @@ class Can {
                     // }
                     //const char *URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
                     //const char *URL =  "http://46.252.154.133:8080";
-                    const char *URL =  "http://192.168.1.2:3000/mp3";
+                    const char *URL =  "http://192.168.1.18:8080/mp3";
                     AudioFileSourceHTTPStream *file = new AudioFileSourceHTTPStream(URL);
                     //AudioFileSourceICYStream *file = new AudioFileSourceICYStream(URL);
                     AudioFileSourceBuffer *buff = new AudioFileSourceBuffer(file, 2048);
@@ -402,11 +403,11 @@ void readSerial () {
 void setup() {
     USE_SERIAL.begin(115200);
     //can.connectToWifi("Recurse Center", "nevergraduate!");
-    //can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
-    can.connectToWifi("s&m", "passwordispassword");
+    can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
+    //can.connectToWifi("s&m", "passwordispassword");
     //can.openWebSocket("10.0.20.109", 3000); Recurse
-    //can.openWebSocket("192.168.1.18", 3000); //David's House
-    can.openWebSocket("192.168.1.2", 3000); //Mikey's House
+    can.openWebSocket("192.168.1.18", 8080); //David's House
+    //can.openWebSocket("192.168.1.2", 3000); //Mikey's House
 }
 
 void loop() {
