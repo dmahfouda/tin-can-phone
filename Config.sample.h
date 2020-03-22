@@ -1,4 +1,4 @@
-#define TIN_CAN_SSID "ssid"
-#define TIN_CAN_PASSWORD "password"
-#define TIN_CAN_ID "id"
-#define TIN_CAN_SWITCH "the url of the switching server" 
+#define TIN_CAN_SSID "<wifi-name>"
+#define TIN_CAN_PASSWORD "<wifi-password>"
+#define TIN_CAN_ID "<can-name>"
+#define TIN_CAN_SWITCH "<local ip address>"
