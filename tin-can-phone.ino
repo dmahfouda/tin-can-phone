@@ -197,7 +197,7 @@ class Can {
 
         void openWebSocket(String ip, int port) {
             this->webSocket.beginSocketIO(ip, port);
-            //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
+            this->webSocket.setExtraHeaders("name:$", TIN_CAN_ID);
             this->webSocket.onEvent(webSocketEvent);
         }
 
