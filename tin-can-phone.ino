@@ -14,6 +14,7 @@
 #include "AudioGeneratorMP3.h"
 #include "AudioFileSourceBuffer.h"
 #include "AudioLogger.h"
+#include "Config.h"
 
 #define USE_SERIAL Serial
 #define MESSAGE_INTERVAL 30000
@@ -401,12 +402,8 @@ void readSerial () {
 
 void setup() {
     USE_SERIAL.begin(115200);
-    //can.connectToWifi("Recurse Center", "nevergraduate!");
-    //can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
-    can.connectToWifi("s&m", "passwordispassword");
-    //can.openWebSocket("10.0.20.109", 3000); Recurse
-    //can.openWebSocket("192.168.1.18", 3000); //David's House
-    can.openWebSocket("192.168.1.2", 3000); //Mikey's House
+    can.connectToWifi(TIN_CAN_SSID, TIN_CAN_PASSWORD);
+    can.openWebSocket(TIN_CAN_SWITCH, 3000);
 }
 
 void loop() {
