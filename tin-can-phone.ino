@@ -197,7 +197,8 @@ class Can {
 
         void openWebSocket(String ip, int port) {
             this->webSocket.beginSocketIO(ip, port);
-            this->webSocket.setExtraHeaders("name:$", TIN_CAN_ID);
+            String header_string = String("name:") + TIN_CAN_ID;
+            this->webSocket.setExtraHeaders(header_string);
             this->webSocket.onEvent(webSocketEvent);
         }
 
