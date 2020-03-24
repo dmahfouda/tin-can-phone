@@ -1,3 +1,4 @@
 **/*.bin
 **/*.elf
 **/*.swp
+Config.h

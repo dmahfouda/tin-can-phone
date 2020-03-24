@@ -14,6 +14,7 @@
 #include "AudioGeneratorMP3.h"
 #include "AudioFileSourceBuffer.h"
 #include "AudioLogger.h"
+#include "Config.h"
 
 #define USE_SERIAL Serial
 #define MESSAGE_INTERVAL 30000
@@ -196,7 +197,8 @@ class Can {
 
         void openWebSocket(String ip, int port) {
             this->webSocket.beginSocketIO(ip, port);
-            //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
+            String header_string = String("name:") + TIN_CAN_ID;
+            this->webSocket.setExtraHeaders(header_string.c_str());
             this->webSocket.onEvent(webSocketEvent);
         }
 
@@ -264,7 +266,8 @@ class Can {
                     // }
                     //const char *URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
                     //const char *URL =  "http://46.252.154.133:8080";
-                    const char *URL =  "http://192.168.1.2:3000/mp3";
+                    String STRINGURL =  String("http://") + TIN_CAN_SWITCH_HOST + String(":") + String(TIN_CAN_SWITCH_PORT) + String("/mp3");
+                    const char *URL =  STRINGURL.c_str();
                     AudioFileSourceHTTPStream *file = new AudioFileSourceHTTPStream(URL);
                     //AudioFileSourceICYStream *file = new AudioFileSourceICYStream(URL);
                     AudioFileSourceBuffer *buff = new AudioFileSourceBuffer(file, 2048);
@@ -401,12 +404,8 @@ void readSerial () {
 
 void setup() {
     USE_SERIAL.begin(115200);
-    //can.connectToWifi("Recurse Center", "nevergraduate!");
-    //can.connectToWifi("MySpectrumWiFib8-2G", "classypoodle861");
-    can.connectToWifi("s&m", "passwordispassword");
-    //can.openWebSocket("10.0.20.109", 3000); Recurse
-    //can.openWebSocket("192.168.1.18", 3000); //David's House
-    can.openWebSocket("192.168.1.2", 3000); //Mikey's House
+    can.connectToWifi(TIN_CAN_SSID, TIN_CAN_PASSWORD);
+    can.openWebSocket(TIN_CAN_SWITCH_HOST, TIN_CAN_SWITCH_PORT);
 }
 
 void loop() {
