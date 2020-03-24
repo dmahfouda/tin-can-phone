@@ -266,7 +266,8 @@ class Can {
                     // }
                     //const char *URL = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
                     //const char *URL =  "http://46.252.154.133:8080";
-                    const char *URL =  "http://192.168.1.2:3000/mp3";
+                    String STRINGURL =  String("http://") + TIN_CAN_SWITCH_HOST + String(":") + String(TIN_CAN_SWITCH_PORT) + String("/mp3");
+                    const char *URL =  STRINGURL.c_str();
                     AudioFileSourceHTTPStream *file = new AudioFileSourceHTTPStream(URL);
                     //AudioFileSourceICYStream *file = new AudioFileSourceICYStream(URL);
                     AudioFileSourceBuffer *buff = new AudioFileSourceBuffer(file, 2048);
@@ -404,7 +405,7 @@ void readSerial () {
 void setup() {
     USE_SERIAL.begin(115200);
     can.connectToWifi(TIN_CAN_SSID, TIN_CAN_PASSWORD);
-    can.openWebSocket(TIN_CAN_SWITCH, 3000);
+    can.openWebSocket(TIN_CAN_SWITCH_HOST, TIN_CAN_SWITCH_PORT);
 }
 
 void loop() {
