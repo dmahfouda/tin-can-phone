@@ -13,3 +13,16 @@ Then copy the contents of Config.sample.h into Config.h
 ```
 
 Update these values to suit your local environment.
+
+In order to find your IP address
+
+```
+ifconfig
+```
+
+Then look for the ip address at 
+
+```
+en0:
+inet
+```
