@@ -10,6 +10,7 @@ Then copy the contents of Config.sample.h into Config.h
 #define TIN_CAN_PASSWORD "<wifi-password>"
 #define TIN_CAN_ID "<can-name>"
 #define TIN_CAN_SWITCH "<local ip address>"
+#define TIN_CAN_SWITCH_PORT "<port listed in tin>"
 ```
 
 Update these values to suit your local environment.
@@ -26,3 +27,5 @@ Then look for the ip address at
 en0:
 inet
 ```
+
+In order to find your port address, you need to check forwarding in three places, Virtual Box, docker.yaml (in tin-can-switch), and in the index.js file (also in tin-can-switch)
