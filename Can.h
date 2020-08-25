@@ -2,23 +2,30 @@
 #define CAN_H
 
 #include <Arduino.h>
+#include <WiFiManager.h>
 #include "Player.h"
 #include "Recorder.h"
 
 class Can {
     private:
         enum State {
-            Recording,  
-            Playing,
+            Disconnected,
+            MessageIncoming,
+            MessageOutgoing,
+            MessagePlaying,
+            MessageRecording,
+            MessageSending,
+            MessageReceiving,
             Idling,
         } state;
 
+        WiFiManager wifiManager;
         Recorder recorder;
         Player player;
        
     public:
         Can(Recorder recorder, Player player) : recorder(recorder), player(player) { 
-            this->state = Can::State::Idling;
+            this->state = Can::State::Disconnected;
         };
 
         void loop();
