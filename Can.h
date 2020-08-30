@@ -5,31 +5,38 @@
 #include <WiFiManager.h>
 #include "Player.h"
 #include "Recorder.h"
+#include "MessageSender.h"
+#include "MessageReceiver.h"
 
 class Can {
     private:
         enum State {
             Disconnected,
-            MessageIncoming,
-            MessageOutgoing,
+            MessageWaiting,
+            MessageReceiving,
             MessagePlaying,
             MessageRecording,
             MessageSending,
-            MessageReceiving,
+            MessageDelivered,
             Idling,
         } state;
 
         WiFiManager wifiManager;
+        MessageSender messageSender;
+        MessageReceiver messageReceiver;
         Recorder recorder;
         Player player;
        
     public:
-        Can(Recorder recorder, Player player) : recorder(recorder), player(player) { 
+        Can(MessageSender messageSender, MessageReceiver messageReceiver, Recorder recorder, Player player) 
+            : messageSender(messageSender), messageReceiver(messageReceiver), recorder(recorder), player(player) 
+        { 
             this->state = Can::State::Disconnected;
         };
 
         void loop();
         void updateState();
+        void updateState(Can::State state);
         String getStateString();
 
         void setRecorder(Recorder recorder) {

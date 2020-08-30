@@ -15,6 +15,20 @@ void Can::loop() {
                 this->recorder.loop();
             }
             break;
+        case Can::State::MessageSending:
+            if (!this->messageSender.isSending()) {
+                this->updateState();
+            } else {
+                this->messageSender.loop();
+            }
+            break;
+        case Can::State::MessageReceiving:
+            if (!this->messageReceiver.isReceiving()) {
+                this->updateState();
+            } else {
+                this->messageReceiver.loop();
+            }
+            break;
         case Can::State::MessagePlaying:
             if (!this->player.isPlaying()) {
                 this->updateState();
@@ -36,6 +50,16 @@ void Can::updateState() {
             break;
         case Can::State::MessageRecording:
             this->recorder.stop();
+            this->state = Can::State::MessageSending;
+            this->messageSender.begin();
+            break;
+        case Can::State::MessageSending:
+            this->messageSender.stop();
+            this->state = Can::State::MessageReceiving;
+            this->messageReceiver.begin();
+            break;
+        case Can::State::MessageReceiving:
+            this->messageReceiver.stop();
             this->state = Can::State::MessagePlaying;
             this->player.begin();
             break;
@@ -55,12 +79,20 @@ void Can::updateState() {
     Serial.println();
 }
 
+void Can::updateState(Can::State state) {
+    this->state = state;
+}
+
 String Can::getStateString() {
     switch (this->state) {
         case Can::State::Disconnected:
             return "Disconnected";
         case Can::State::MessageRecording:
             return "MessageRecording";
+        case Can::State::MessageSending:
+            return "MessageSending";
+        case Can::State::MessageReceiving:
+            return "MessageReceiving";
         case Can::State::MessagePlaying:
             return "MessagePlaying";
         case Can::State::Idling:
