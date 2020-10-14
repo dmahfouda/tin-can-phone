@@ -19,9 +19,9 @@ extern "C" {
 /* button */
 Button                   button(D0);
 /* sender */
-MessageSender            messageSender(TIN_CAN_PHONE_AUDIO_FILENAME, TIN_CAN_SWITCH_PROTOCOL "://" TIN_CAN_SWITCH_HOST ":" TIN_CAN_SWITCH_PORT "/message");
+MessageSender            messageSender(TIN_CAN_PHONE_AUDIO_FILENAME, TIN_CAN_SWITCH_PROTOCOL "://" TIN_CAN_SWITCH_HOST ":" TIN_CAN_SWITCH_PORT "/box/" TIN_CAN_SWITCH_BOX "/message");
 /* receiver */
-MessageReceiver          messageReceiver(TIN_CAN_PHONE_AUDIO_FILENAME, TIN_CAN_SWITCH_PROTOCOL "://" TIN_CAN_SWITCH_HOST ":" TIN_CAN_SWITCH_PORT "/message");
+MessageReceiver          messageReceiver(TIN_CAN_PHONE_AUDIO_FILENAME, TIN_CAN_SWITCH_PROTOCOL "://" TIN_CAN_SWITCH_HOST ":" TIN_CAN_SWITCH_PORT "/box/" TIN_CAN_SWITCH_BOX "/message");
 /* recorder */
 MAX4466                  microphone(A0);
 ExponentialMovingAverage ema(microphone.getSample(), TIN_CAN_PHONE_EMA_ALPHA);
