@@ -1,101 +1,101 @@
 #include <Arduino.h>
-#include "Can.h"
+#include "TinCanPhone.h"
 
-void Can::loop() {
+void TinCanPhone::loop() {
     switch (this->state) {
-        case Can::State::Disconnected:
+        case TinCanPhone::State::Disconnected:
             if (this->wifiManager.autoConnect()) {
                 this->updateState();
             }
             break;
-        case Can::State::MessageRecording:
+        case TinCanPhone::State::MessageRecording:
             if (!this->recorder.isRecording()) {
                 this->updateState();
             } else {
                 this->recorder.loop();
             }
             break;
-        case Can::State::MessageSending:
+        case TinCanPhone::State::MessageSending:
             if (!this->messageSender.isSending()) {
                 this->updateState();
             } else {
                 this->messageSender.loop();
             }
             break;
-        case Can::State::MessageReceiving:
+        case TinCanPhone::State::MessageReceiving:
             if (!this->messageReceiver.isReceiving()) {
                 this->updateState();
             } else {
                 this->messageReceiver.loop();
             }
             break;
-        case Can::State::MessagePlaying:
+        case TinCanPhone::State::MessagePlaying:
             if (!this->player.isPlaying()) {
                 this->updateState();
             } else {
                 this->player.loop();
             }
             break;
-        case Can::State::Idling:
+        case TinCanPhone::State::Idling:
         default:
             // unknown can state ... ?
             break;
     }
 }
 
-void Can::updateState() {
+void TinCanPhone::updateState() {
     switch (this->state) {
-        case Can::State::Disconnected:
-            this->state = Can::State::Idling;
+        case TinCanPhone::State::Disconnected:
+            this->state = TinCanPhone::State::Idling;
             break;
-        case Can::State::MessageRecording:
+        case TinCanPhone::State::MessageRecording:
             this->recorder.stop();
-            this->state = Can::State::MessageSending;
+            this->state = TinCanPhone::State::MessageSending;
             this->messageSender.begin();
             break;
-        case Can::State::MessageSending:
+        case TinCanPhone::State::MessageSending:
             this->messageSender.stop();
-            this->state = Can::State::MessageReceiving;
+            this->state = TinCanPhone::State::MessageReceiving;
             this->messageReceiver.begin();
             break;
-        case Can::State::MessageReceiving:
+        case TinCanPhone::State::MessageReceiving:
             this->messageReceiver.stop();
-            this->state = Can::State::MessagePlaying;
+            this->state = TinCanPhone::State::MessagePlaying;
             this->player.begin();
             break;
-        case Can::State::MessagePlaying:
+        case TinCanPhone::State::MessagePlaying:
             this->player.stop();
-            this->state = Can::State::Idling;
+            this->state = TinCanPhone::State::Idling;
             break;
-        case Can::State::Idling:
+        case TinCanPhone::State::Idling:
             this->recorder.begin();
-            this->state = Can::State::MessageRecording;
+            this->state = TinCanPhone::State::MessageRecording;
             break;
         default:
             // unknown can state ... ?
-            this->state = Can::State::Idling;
+            this->state = TinCanPhone::State::Idling;
     }
-    Serial.printf("state = %s", Can::getStateString().c_str());
+    Serial.printf("state = %s", TinCanPhone::getStateString().c_str());
     Serial.println();
 }
 
-void Can::updateState(Can::State state) {
+void TinCanPhone::updateState(TinCanPhone::State state) {
     this->state = state;
 }
 
-String Can::getStateString() {
+String TinCanPhone::getStateString() {
     switch (this->state) {
-        case Can::State::Disconnected:
+        case TinCanPhone::State::Disconnected:
             return "Disconnected";
-        case Can::State::MessageRecording:
+        case TinCanPhone::State::MessageRecording:
             return "MessageRecording";
-        case Can::State::MessageSending:
+        case TinCanPhone::State::MessageSending:
             return "MessageSending";
-        case Can::State::MessageReceiving:
+        case TinCanPhone::State::MessageReceiving:
             return "MessageReceiving";
-        case Can::State::MessagePlaying:
+        case TinCanPhone::State::MessagePlaying:
             return "MessagePlaying";
-        case Can::State::Idling:
+        case TinCanPhone::State::Idling:
             return "Idling";
         default:
             return "unknown";

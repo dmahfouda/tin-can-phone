@@ -1,16 +1,16 @@
 #include <Arduino.h>
 #include <i2s.h>
-#include "Config.h"
-#include "Button.h"
-#include "Can.h"
-#include "Recorder.h"
-#include "RecorderOutputFile.h"
-#include "RecorderOutputBuffer.h"
-#include "Player.h"
-#include "PlayerInputFile.h"
-#include "MAX4466.h"
-#include "MAX98357A.h"
-#include "ExponentialMovingAverage.h"
+#include "src/Config.h"
+#include "src/Button.h"
+#include "src/TinCanPhone.h"
+#include "src/Recorder.h"
+#include "src/RecorderOutputFile.h"
+#include "src/RecorderOutputBuffer.h"
+#include "src/Player.h"
+#include "src/PlayerInputFile.h"
+#include "src/MAX4466.h"
+#include "src/MAX98357A.h"
+#include "src/ExponentialMovingAverage.h"
 
 extern "C" {
     #include <user_interface.h>
@@ -33,7 +33,7 @@ PlayerInputFile          inputFile(TIN_CAN_PHONE_AUDIO_FILENAME);
 MAX98357A                dac;
 Player                   player(&inputFile, &dac);
 /* can */
-Can                      can(messageSender, messageReceiver, recorder, player);
+TinCanPhone              tinCanPhone(messageSender, messageReceiver, recorder, player);
 
 void setup() {
     system_update_cpu_freq(160);
@@ -47,7 +47,7 @@ void setup() {
 void loop() {
     button.loop();
     if (button.wasClicked()) {
-        can.updateState();
+        tinCanPhone.updateState();
     }
-    can.loop();
+    tinCanPhone.loop();
 }

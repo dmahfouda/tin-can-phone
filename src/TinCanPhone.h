@@ -1,5 +1,5 @@
-#ifndef CAN_H
-#define CAN_H
+#ifndef TIN_CAN_PHONE_H
+#define TIN_CAN_PHONE_H
 
 #include <Arduino.h>
 #include <WiFiManager.h>
@@ -8,7 +8,7 @@
 #include "MessageSender.h"
 #include "MessageReceiver.h"
 
-class Can {
+class TinCanPhone {
     private:
         enum State {
             Disconnected,
@@ -28,15 +28,15 @@ class Can {
         Player player;
        
     public:
-        Can(MessageSender messageSender, MessageReceiver messageReceiver, Recorder recorder, Player player) 
+        TinCanPhone(MessageSender messageSender, MessageReceiver messageReceiver, Recorder recorder, Player player) 
             : messageSender(messageSender), messageReceiver(messageReceiver), recorder(recorder), player(player) 
         { 
-            this->state = Can::State::Disconnected;
+            this->state = TinCanPhone::State::Disconnected;
         };
 
         void loop();
         void updateState();
-        void updateState(Can::State state);
+        void updateState(TinCanPhone::State state);
         String getStateString();
 
         void setRecorder(Recorder recorder) {
