@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <i2s.h>
-#include "src/Config.h"
+#include "Config.h"
 #include "src/Button.h"
 #include "src/TinCanPhone.h"
 #include "src/Recorder.h"
