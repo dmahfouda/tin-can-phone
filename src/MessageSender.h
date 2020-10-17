@@ -13,6 +13,7 @@ class MessageSender {
         WiFiClient wifi;
         HTTPClient *http;
         String url;
+        String messageHash;
         bool sending;
 
     public:
@@ -23,6 +24,7 @@ class MessageSender {
         void begin();
         void loop();
         void stop();
+        String getMessageHash();
 };
 
 #endif

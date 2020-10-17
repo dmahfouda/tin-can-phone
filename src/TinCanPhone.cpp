@@ -64,6 +64,9 @@ void TinCanPhone::updateState() {
         case TinCanPhone::State::MessageSending:
             this->messageSender.stop();
             this->state = TinCanPhone::State::MessageDelivered;
+            if (this->messageSender.getMessageHash() != "") {
+                this->box.setMessageHash(this->messageSender.getMessageHash());
+            }
             break;
         case TinCanPhone::State::MessageDelivered:
 	        switch (this->box.getState()) {
@@ -114,7 +117,7 @@ void TinCanPhone::updateState() {
             // unknown can state ... ?
             this->state = TinCanPhone::State::Idling;
     }
-    Serial.printf("TinCanPhone::State = %s, Box::State = %s", this->getStateString().c_str(), this->box.getStateString().c_str());
+    Serial.printf("TinCanPhone::State = %s", this->getStateString().c_str());
     Serial.println();
 }
 

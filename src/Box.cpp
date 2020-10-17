@@ -1,4 +1,5 @@
 #include <ArduinoJson.h>
+#include <string.h>
 #include "../Config.h"
 #include "Box.h"
 
@@ -15,6 +16,7 @@ void Box::loop() {
 }
 
 void Box::updateState() {
+    Box::State previousState = this->state;
     // TODO: try to reuse connection
     this->http = new HTTPClient();
     if (!this->http->begin(this->wifi, TIN_CAN_SWITCH_PROTOCOL "://" TIN_CAN_SWITCH_HOST ":" TIN_CAN_SWITCH_PORT "/box/" TIN_CAN_SWITCH_BOX)) {
@@ -33,20 +35,26 @@ void Box::updateState() {
     DeserializationError error;
     if (error = deserializeJson(json, this->http->getString())) {
         Serial.printf("failed to deserialize json response: '%s' (%s)", this->http->getString().c_str(), error.c_str());
+        Serial.println();
         this->state = Box::State::Error;
         return;
     }
-    const char *messageHash = json["messageHash"];
-    if (messageHash == nullptr || messageHash == "") {
+    String remoteMessageHash = json["messageHash"] | "";
+    if (remoteMessageHash == "") {
         this->state = Box::State::Empty;
+        this->messageHash = "";
     } else {
-        if (this->messageHash == messageHash) {
+        if (this->messageHash == remoteMessageHash) {
             this->state = Box::State::MessageDelivered;
         } else {
             this->state = Box::State::MessageWaiting;
         }
     }
     this->lastUpdateTime = millis();
+    if (this->state != previousState) {
+        Serial.printf("Box::State = %s", this->getStateString().c_str());
+        Serial.println();
+    }
     // cleanup
     this->http->end();
     delete this->http;
@@ -70,4 +78,8 @@ String Box::getStateString() {
         default:
             return "Unknown";
     }
+}
+
+void Box::setMessageHash(String messageHash) {
+    this->messageHash = messageHash;
 }

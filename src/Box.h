@@ -7,6 +7,7 @@
 class Box {
     public:
         enum State {
+            Unknown,
             Empty,
             MessageWaiting,
             MessageDelivered,
@@ -29,6 +30,7 @@ class Box {
         void updateState();
         Box::State getState();
         String getStateString();
+        void setMessageHash(String);
 };
 
 #endif
