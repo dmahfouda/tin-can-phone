@@ -7,6 +7,7 @@
 #include "Recorder.h"
 #include "MessageSender.h"
 #include "MessageReceiver.h"
+#include "Box.h"
 
 class TinCanPhone {
     private:
@@ -19,6 +20,7 @@ class TinCanPhone {
             MessageSending,
             MessageDelivered,
             Idling,
+            Error
         } state;
 
         WiFiManager wifiManager;
@@ -26,10 +28,11 @@ class TinCanPhone {
         MessageReceiver messageReceiver;
         Recorder recorder;
         Player player;
+        Box box;
        
     public:
-        TinCanPhone(MessageSender messageSender, MessageReceiver messageReceiver, Recorder recorder, Player player) 
-            : messageSender(messageSender), messageReceiver(messageReceiver), recorder(recorder), player(player) 
+        TinCanPhone(MessageSender messageSender, MessageReceiver messageReceiver, Recorder recorder, Player player, Box box) 
+            : messageSender(messageSender), messageReceiver(messageReceiver), recorder(recorder), player(player), box(box)
         { 
             this->state = TinCanPhone::State::Disconnected;
         };

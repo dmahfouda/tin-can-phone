@@ -8,6 +8,12 @@
 #define TIN_CAN_SWITCH_BOX "<box-name>"
 
 /*
+ * Number of seconds to wait before polling
+ * the server for an updated box state.
+ */
+#define TIN_CAN_SWITCH_BOX_UPDATE_INTERVAL 5
+
+/*
  * When the device is powered on, if it cannot
  * connect to a WiFi network, it will turn into
  * an access point. One can then connect to it using

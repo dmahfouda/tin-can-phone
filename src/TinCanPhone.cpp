@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "../Config.h"
 #include "TinCanPhone.h"
 
 void TinCanPhone::loop() {
@@ -22,6 +23,12 @@ void TinCanPhone::loop() {
                 this->messageSender.loop();
             }
             break;
+        case TinCanPhone::State::MessageDelivered:
+            this->box.loop();
+            break;
+        case TinCanPhone::State::MessageWaiting:
+            this->box.loop();
+            break;
         case TinCanPhone::State::MessageReceiving:
             if (!this->messageReceiver.isReceiving()) {
                 this->updateState();
@@ -37,6 +44,7 @@ void TinCanPhone::loop() {
             }
             break;
         case TinCanPhone::State::Idling:
+            this->box.loop();
         default:
             // unknown can state ... ?
             break;
@@ -55,6 +63,24 @@ void TinCanPhone::updateState() {
             break;
         case TinCanPhone::State::MessageSending:
             this->messageSender.stop();
+            this->state = TinCanPhone::State::MessageDelivered;
+            break;
+        case TinCanPhone::State::MessageDelivered:
+	        switch (this->box.getState()) {
+	            case Box::State::Empty:
+	                this->state = TinCanPhone::State::Idling;
+	                break;
+	            case Box::State::MessageWaiting:
+	                this->state = TinCanPhone::State::MessageWaiting;
+	                break;
+	            case Box::State::MessageDelivered:
+	                break;
+                case Box::State::Error:
+                    this->state = TinCanPhone::State::Error;
+                    break;
+	        }
+            break;
+        case TinCanPhone::State::MessageWaiting:
             this->state = TinCanPhone::State::MessageReceiving;
             this->messageReceiver.begin();
             break;
@@ -68,14 +94,27 @@ void TinCanPhone::updateState() {
             this->state = TinCanPhone::State::Idling;
             break;
         case TinCanPhone::State::Idling:
-            this->recorder.begin();
-            this->state = TinCanPhone::State::MessageRecording;
+            switch (this->box.getState()) {
+	            case Box::State::Empty:
+                    this->recorder.begin();
+                    this->state = TinCanPhone::State::MessageRecording;
+	                break;
+	            case Box::State::MessageWaiting:
+	                this->state = TinCanPhone::State::MessageWaiting;
+	                break;
+	            case Box::State::MessageDelivered:
+                    this->state = TinCanPhone::State::MessageDelivered;
+	                break;
+                case Box::State::Error:
+                    this->state = TinCanPhone::State::Error;
+                    break;
+	        }
             break;
         default:
             // unknown can state ... ?
             this->state = TinCanPhone::State::Idling;
     }
-    Serial.printf("state = %s", TinCanPhone::getStateString().c_str());
+    Serial.printf("TinCanPhone::State = %s, Box::State = %s", this->getStateString().c_str(), this->box.getStateString().c_str());
     Serial.println();
 }
 
@@ -91,6 +130,10 @@ String TinCanPhone::getStateString() {
             return "MessageRecording";
         case TinCanPhone::State::MessageSending:
             return "MessageSending";
+        case TinCanPhone::State::MessageDelivered:
+            return "MessageDelivered";
+        case TinCanPhone::State::MessageWaiting:
+            return "MessageWaiting";
         case TinCanPhone::State::MessageReceiving:
             return "MessageReceiving";
         case TinCanPhone::State::MessagePlaying:
@@ -98,7 +141,7 @@ String TinCanPhone::getStateString() {
         case TinCanPhone::State::Idling:
             return "Idling";
         default:
-            return "unknown";
+            return "Unknown";
     }
 }
 

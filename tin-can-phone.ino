@@ -32,8 +32,10 @@ Recorder                 recorder(&microphone, TIN_CAN_PHONE_SAMPLE_RATE, &ema, 
 PlayerInputFile          inputFile(TIN_CAN_PHONE_AUDIO_FILENAME);
 MAX98357A                dac;
 Player                   player(&inputFile, &dac);
+/* box */
+Box                      box(TIN_CAN_SWITCH_BOX);
 /* can */
-TinCanPhone              tinCanPhone(messageSender, messageReceiver, recorder, player);
+TinCanPhone              tinCanPhone(messageSender, messageReceiver, recorder, player, box);
 
 void setup() {
     system_update_cpu_freq(160);
